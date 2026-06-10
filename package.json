@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Internal operating system for agency growth",
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"wrangler pages dev --proxy 3000 --port 8788 --compatibility-flag=nodejs_compat\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -31,6 +31,7 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.0",
     "better-sqlite3": "^12.10.0",
+    "concurrently": "^10.0.3",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.9",
