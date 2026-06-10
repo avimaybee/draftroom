@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Internal operating system for agency growth",
   "scripts": {
-    "dev": "concurrently \"next dev\" \"wrangler pages dev --proxy 3000 --port 8788 --compatibility-flag=nodejs_compat\"",
+    "dev": "concurrently \"next dev\" \"wrangler pages dev public --proxy 3000 --port 8788 --compatibility-flag=nodejs_compat\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -14,6 +14,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
+    "drizzle-zod": "^0.8.3",
     "genkit": "^1.0.0",
     "jose": "^6.2.3",
     "next": "^16.2.9",
