@@ -15,4 +15,14 @@ export const CreateLeadSchema = z.object({
 });
 
 export type Lead = typeof leads.$inferSelect;
-export type CreateLeadInput = z.infer<typeof CreateLeadSchema>;
+export type CreateLeadInput = {
+  name: string;
+  company?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  city?: string | null;
+  region?: string | null;
+  industry?: string | null;
+  stage?: string | null;
+};

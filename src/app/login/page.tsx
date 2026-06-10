@@ -38,25 +38,33 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background radial glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[radial-gradient(circle,var(--color-indigo-600),transparent_70%)] opacity-25 pointer-events-none blur-3xl" />
+      <div className="absolute top-1/3 left-1/4 w-[300px] h-[300px] bg-[radial-gradient(circle,var(--color-violet-500),transparent_70%)] opacity-20 pointer-events-none blur-3xl" />
+
+      <div className="w-full max-w-md space-y-8 bg-slate-900/40 backdrop-blur-2xl p-10 rounded-3xl shadow-2xl border border-slate-800/80 relative z-10">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20 mx-auto mb-6 text-xl">
+            G
+          </div>
+          <h2 className="text-3xl font-extrabold tracking-tight text-white">
             Growth OS
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-sm font-semibold text-slate-400">
             Internal Agency Access
           </p>
         </div>
+        
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-100">
+            <div className="bg-red-500/10 text-red-400 p-4 rounded-xl text-xs font-semibold border border-red-500/20">
               {error}
             </div>
           )}
-          <div className="-space-y-px rounded-md">
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email-address" className="sr-only">
+              <label htmlFor="email-address" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Email address
               </label>
               <input
@@ -65,14 +73,14 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="username"
                 required
-                className="relative block w-full rounded-t-lg border-0 py-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-black sm:text-sm sm:leading-6 px-4"
-                placeholder="Email address"
+                className="block w-full rounded-xl border border-slate-800 bg-slate-950/60 py-3 px-4 text-white shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm placeholder:text-slate-500"
+                placeholder="admin@agency.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">
+              <label htmlFor="password" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Password
               </label>
               <input
@@ -81,8 +89,8 @@ export default function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="relative block w-full rounded-b-lg border-0 py-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-black sm:text-sm sm:leading-6 px-4"
-                placeholder="Password"
+                className="block w-full rounded-xl border border-slate-800 bg-slate-950/60 py-3 px-4 text-white shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm placeholder:text-slate-500"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -93,7 +101,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative flex w-full justify-center rounded-lg bg-black px-3 py-3 text-sm font-semibold leading-6 text-white hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:opacity-50 transition-all"
+              className="group relative flex w-full justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-50 transition-all hover:scale-[1.01] shadow-lg shadow-indigo-600/15"
             >
               {loading ? 'Authenticating...' : 'Sign In'}
             </button>

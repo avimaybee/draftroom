@@ -1,0 +1,56 @@
+'use server';
+
+import { DiscoveryService } from '@/services/discovery';
+import { CreateDiscoveryScopeSchema } from '@/db/models/discovery';
+import { drizzle } from 'drizzle-orm/d1';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth';
+
+async function getService() {
+  const env = (process as any).env;
+  const db = drizzle(env.DB);
+  return new DiscoveryService(db);
+}
+
+export async function createScopeAction(prevState: any, formData: FormData) {
+  const service = await getService();
+
+  // Get current session for owner/creator ID
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('session')?.value;
+  const sessionPayload = await verifySession(sessionToken);
+
+  if (!sessionPayload || !sessionPayload.userId) {
+    return { error: 'Unauthorized. Please log in.' };
+  }
+
+  const rawData = {
+    name: formData.get('name') as string,
+    description: formData.get('description') as string,
+    industryFilter: formData.get('industryFilter') as string,
+    geographyFilter: formData.get('geographyFilter') as string,
+    companySizeFilter: formData.get('companySizeFilter') as string,
+    businessTypeFilter: formData.get('businessTypeFilter') as string,
+    digitalPresenceFilter: formData.get('digitalPresenceFilter') as string,
+    notes: formData.get('notes') as string,
+    createdByUserId: sessionPayload.userId,
+  };
+
+  const validated = CreateDiscoveryScopeSchema.safeParse(rawData);
+
+  if (!validated.success) {
+    return { error: 'Validation failed. Please fill out all required fields.', issues: validated.error.format() };
+  }
+
+  try {
+    const id = crypto.randomUUID();
+    await service.createScope(id, validated.data);
+  } catch (error: any) {
+    return { error: error.message || 'Failed to create discovery scope.' };
+  }
+
+  revalidatePath('/scopes');
+  redirect('/scopes');
+}

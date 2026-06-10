@@ -59,3 +59,46 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
   }
 };
+
+export const onRequestPatch: PagesFunction<Env> = async (context) => {
+  try {
+    const { id, status, ownerId } = await context.request.json() as {
+      id: string;
+      status: 'NEW' | 'REVIEWED' | 'PROMOTED' | 'DISCARDED';
+      ownerId?: string;
+    };
+
+    if (!id || !status) {
+      return new Response(JSON.stringify({ success: false, error: 'id and status parameters are required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const db = drizzle(context.env.DB);
+    const service = new DiscoveryService(db);
+
+    if (status === 'PROMOTED') {
+      if (!ownerId) {
+        return new Response(JSON.stringify({ success: false, error: 'ownerId is required for promotion' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      const lead = await service.promoteCandidate(id, ownerId);
+      return new Response(JSON.stringify({ success: true, data: lead }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } else {
+      const candidate = await service.updateCandidateStatus(id, status);
+      return new Response(JSON.stringify({ success: true, data: candidate }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  } catch (error: any) {
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+};

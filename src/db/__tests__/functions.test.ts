@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import Database from 'better-sqlite3';
 import { onRequestGet as getScopes, onRequestPost as postScope } from '../../../functions/api/scopes';
-import { onRequestGet as getCandidates, onRequestPost as postCandidate } from '../../../functions/api/candidates';
+import { onRequestGet as getCandidates, onRequestPost as postCandidate, onRequestPatch as patchCandidate } from '../../../functions/api/candidates';
 import { DiscoveryService } from '../../services/discovery';
 
 class MockD1Database {
@@ -70,6 +70,40 @@ function setupTestDb() {
   
   // Create tables
   sqlite.exec(`
+    CREATE TABLE users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      created_at INTEGER,
+      updated_at INTEGER
+    );
+
+    CREATE TABLE leads (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      company TEXT,
+      email TEXT,
+      phone TEXT,
+      website TEXT,
+      city TEXT,
+      region TEXT,
+      industry TEXT,
+      stage TEXT NOT NULL DEFAULT 'New',
+      status TEXT NOT NULL DEFAULT 'Active',
+      owner_id TEXT REFERENCES users(id),
+      created_at INTEGER,
+      updated_at INTEGER
+    );
+
+    CREATE TABLE activities (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES leads(id),
+      type TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      timestamp INTEGER
+    );
+
     CREATE TABLE discovery_scopes (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -135,6 +169,7 @@ test('API Endpoint - GET /api/scopes returns empty list initially', async () => 
   const mockD1 = setupTestDb();
   
   const mockContext = {
+    request: { url: 'https://localhost/api/scopes' } as any,
     env: { DB: mockD1 as any }
   } as any;
 
@@ -172,6 +207,89 @@ test('API Endpoint - POST /api/candidates creates a candidate successfully', asy
   assert.strictEqual(body.data.rawName, 'Dream Homes Realty');
   assert.strictEqual(body.data.rawWebsiteUrl, 'https://dreamhomes.com');
   assert.ok(body.data.id);
+});
+
+test('API Endpoint - PATCH /api/candidates updates status successfully', async () => {
+  const mockD1 = setupTestDb();
+  const db = require('drizzle-orm/better-sqlite3').drizzle((mockD1 as any).sqlite);
+  const service = new DiscoveryService(db);
+
+  // Setup candidate
+  await service.createCandidateLead('cand_123', {
+    rawName: 'Dream Homes Realty',
+    status: 'NEW'
+  });
+
+  const payload = {
+    id: 'cand_123',
+    status: 'DISCARDED'
+  };
+
+  const mockRequest = {
+    json: async () => payload
+  } as any;
+
+  const mockContext = {
+    request: mockRequest,
+    env: { DB: mockD1 as any }
+  } as any;
+
+  const response = await patchCandidate(mockContext);
+  assert.strictEqual(response.status, 200);
+
+  const body = await response.json() as any;
+  assert.strictEqual(body.success, true);
+  assert.strictEqual(body.data.status, 'DISCARDED');
+});
+
+test('API Endpoint - PATCH /api/candidates promotes candidate successfully', async () => {
+  const mockD1 = setupTestDb();
+  const db = require('drizzle-orm/better-sqlite3').drizzle((mockD1 as any).sqlite);
+  const service = new DiscoveryService(db);
+
+  // Insert user to avoid FK error
+  await db.insert(require('../schema/core').users).values({
+    id: 'user_123',
+    name: 'Owner User',
+    email: 'owner@test.com',
+    password: 'password_hash',
+  });
+
+  // Setup scope
+  await service.createScope('scope_1', {
+    name: 'Real Estate Agents',
+    createdByUserId: 'user_123'
+  });
+
+  // Setup candidate
+  await service.createCandidateLead('cand_123', {
+    discoveryScopeId: 'scope_1',
+    rawName: 'Dream Homes Realty',
+    status: 'NEW'
+  });
+
+  const payload = {
+    id: 'cand_123',
+    status: 'PROMOTED',
+    ownerId: 'user_123'
+  };
+
+  const mockRequest = {
+    json: async () => payload
+  } as any;
+
+  const mockContext = {
+    request: mockRequest,
+    env: { DB: mockD1 as any }
+  } as any;
+
+  const response = await patchCandidate(mockContext);
+  assert.strictEqual(response.status, 200);
+
+  const body = await response.json() as any;
+  assert.strictEqual(body.success, true);
+  assert.strictEqual(body.data.name, 'Dream Homes Realty');
+  assert.strictEqual(body.data.ownerId, 'user_123');
 });
 
 

@@ -3,6 +3,7 @@
 import { createLeadAction } from '@/app/actions/leads';
 import { useFormStatus } from 'react-dom';
 import { useActionState } from 'react';
+import Link from 'next/link';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -11,9 +12,9 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50"
+      className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 shadow-md shadow-indigo-600/10 disabled:opacity-50 hover:scale-[1.01]"
     >
-      {pending ? 'Saving...' : 'Save Lead'}
+      {pending ? 'Saving Lead...' : 'Save Lead'}
     </button>
   );
 }
@@ -22,39 +23,71 @@ export default function NewLeadPage() {
   const [state, formAction] = useActionState(createLeadAction, { error: null });
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">New Lead</h1>
-        <p className="mt-2 text-gray-600">Enter the details of your new prospect.</p>
+    <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
+      <div className="flex items-center gap-3">
+        <Link 
+          href="/leads" 
+          className="p-2 border border-slate-200 rounded-lg hover:bg-slate-100 text-slate-500 transition"
+        >
+          &larr; Back
+        </Link>
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">New Lead</h1>
+          <p className="text-sm text-slate-500 mt-1">Enter the details of your new active pipeline prospect.</p>
+        </div>
       </div>
 
-      <form action={formAction} className="space-y-6 bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+      <form action={formAction} className="space-y-6 bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
         {state?.error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-100">
+          <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 font-semibold">
             {state.error}
           </div>
         )}
+        
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-
           <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name *</label>
-            <input required type="text" name="name" className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm" />
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name *</label>
+            <input 
+              required 
+              type="text" 
+              name="name" 
+              placeholder="e.g. John Doe"
+              className="block w-full rounded-xl border border-slate-200 py-3 px-4 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm text-slate-900 placeholder:text-slate-400" 
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Company</label>
-            <input type="text" name="company" className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm" />
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Company</label>
+            <input 
+              type="text" 
+              name="company" 
+              placeholder="e.g. Acme Corp"
+              className="block w-full rounded-xl border border-slate-200 py-3 px-4 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm text-slate-900 placeholder:text-slate-400" 
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input type="email" name="email" className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm" />
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email</label>
+            <input 
+              type="email" 
+              name="email" 
+              placeholder="e.g. john@acme.com"
+              className="block w-full rounded-xl border border-slate-200 py-3 px-4 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm text-slate-900 placeholder:text-slate-400" 
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Industry</label>
-            <input type="text" name="industry" className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm" />
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Industry</label>
+            <input 
+              type="text" 
+              name="industry" 
+              placeholder="e.g. Local Services"
+              className="block w-full rounded-xl border border-slate-200 py-3 px-4 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm text-slate-900 placeholder:text-slate-400" 
+            />
           </div>
           <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700">Pipeline Stage</label>
-            <select name="stage" className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black sm:text-sm">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pipeline Stage</label>
+            <select 
+              name="stage" 
+              className="block w-full rounded-xl border border-slate-200 py-3 px-4 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm text-slate-900 bg-white"
+            >
               <option value="New">New</option>
               <option value="Researching">Researching</option>
               <option value="Qualified">Qualified</option>
@@ -64,7 +97,13 @@ export default function NewLeadPage() {
           </div>
         </div>
         
-        <div className="pt-4 flex justify-end">
+        <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+          <Link
+            href="/leads"
+            className="px-5 py-2.5 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 rounded-xl font-semibold text-sm transition"
+          >
+            Cancel
+          </Link>
           <SubmitButton />
         </div>
       </form>

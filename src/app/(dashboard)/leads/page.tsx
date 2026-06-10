@@ -12,58 +12,87 @@ export default async function LeadsPage() {
   
   const leads = await service.listLeads();
 
+  const getStageBadgeClass = (stage: string) => {
+    switch (stage) {
+      case 'Qualified':
+        return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+      case 'Researching':
+        return 'bg-amber-50 text-amber-700 border border-amber-100';
+      case 'Outreach in Progress':
+        return 'bg-indigo-50 text-indigo-700 border border-indigo-100';
+      case 'Meeting / Call':
+        return 'bg-rose-50 text-rose-700 border border-rose-100';
+      default:
+        return 'bg-slate-50 text-slate-700 border border-slate-200';
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Active Leads</h1>
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Active Leads</h1>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Manage your active sales and consulting pipeline leads.
+          </p>
+        </div>
         <Link 
           href="/leads/new" 
-          className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition"
+          className="bg-slate-950 hover:bg-slate-800 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm hover:scale-[1.01]"
         >
           + New Lead
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Company</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Stage</th>
-              <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {leads.length === 0 ? (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50">
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                  No active leads found. Start building your pipeline!
-                </td>
+                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Prospect Details</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Company</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Pipeline Stage</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
-            ) : (
-              leads.map((lead: any) => (
-                <tr key={lead.id} className="hover:bg-gray-50 transition">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">{lead.name}</div>
-                    <div className="text-sm text-gray-500">{lead.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-700">{lead.company || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {lead.stage}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <form action={archiveLeadAction.bind(null, lead.id)}>
-                      <button type="submit" className="text-red-600 hover:text-red-900">Archive</button>
-                    </form>
+            </thead>
+            <tbody className="bg-white divide-y divide-slate-200">
+              {leads.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-medium">
+                    No active leads found. Start building your pipeline!
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                leads.map((lead: any) => (
+                  <tr key={lead.id} className="hover:bg-slate-50/50 transition duration-150">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-bold text-slate-900 text-sm leading-snug">{lead.name}</div>
+                      <div className="text-xs text-slate-400 font-medium mt-0.5">{lead.email || 'No email provided'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-700">
+                      {lead.company || '—'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${getStageBadgeClass(lead.stage)}`}>
+                        {lead.stage}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <form action={archiveLeadAction.bind(null, lead.id)}>
+                        <button 
+                          type="submit" 
+                          className="text-xs font-bold text-red-600 hover:text-red-900 border border-transparent hover:border-red-200/50 px-3 py-1.5 rounded-lg hover:bg-red-50/50 transition"
+                        >
+                          Archive
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

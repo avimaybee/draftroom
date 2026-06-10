@@ -1,5 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1';
+import { eq } from 'drizzle-orm';
 import { DiscoveryService } from '../../src/services/discovery';
+import { discoveryScopes } from '../../src/db/schema/discovery';
 import { CreateDiscoveryScopeSchema } from '../../src/db/models/discovery';
 
 interface Env {
@@ -8,8 +10,19 @@ interface Env {
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
+    const url = context.request ? new URL(context.request.url) : null;
+    const id = url?.searchParams.get('id');
     const db = drizzle(context.env.DB);
     const service = new DiscoveryService(db);
+
+    if (id) {
+      const results = await db.select().from(discoveryScopes).where(eq(discoveryScopes.id, id));
+      const scope = results[0] || null;
+      return new Response(JSON.stringify({ success: true, data: scope }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const scopes = await service.listScopes();
     return new Response(JSON.stringify({ success: true, data: scopes }), {
       headers: { 'Content-Type': 'application/json' },
