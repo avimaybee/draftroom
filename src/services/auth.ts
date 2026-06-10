@@ -1,7 +1,7 @@
-import { users } from '../db/schema.js';
+import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
-import { encrypt } from '../lib/auth.js';
+import { encrypt } from '../lib/auth';
 
 export class AuthService {
   constructor(private db: any) {}

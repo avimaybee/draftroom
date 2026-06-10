@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AuthService } from '@/services/auth';
 import { drizzle } from 'drizzle-orm/d1';
+import { users } from '@/db/schema';
 
 export const runtime = 'edge';
 
@@ -16,11 +17,11 @@ export async function POST(request: Request) {
   const authService = new AuthService(db);
 
   try {
-    const { email, password } = await request.json();
+    const { email, password } = (await request.json()) as any;
     
     // For MVP/Demo: If no users exist, create an initial admin user
     // This is a temporary measure for internal-only setup
-    const usersCount = await db.select().from(require('@/db/schema').users).limit(1);
+    const usersCount = await db.select().from(users).limit(1);
     if (usersCount.length === 0 && email === 'admin@agency.com' && password === 'admin123') {
        await authService.createUser('Admin', 'admin@agency.com', 'admin123');
     }

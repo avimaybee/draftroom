@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { AuthService } from '../../services/auth.js';
-import { users } from '../schema.js';
+import { AuthService } from '../../services/auth';
+import { users } from '../schema';
 
 function setupTestDb() {
   const sqlite = new Database(':memory:');

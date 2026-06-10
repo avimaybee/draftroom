@@ -3,6 +3,7 @@ node_modules
 dist
 .env
 *.log
+*.tsbuildinfo
 .system_generated
 .gemini
 package-lock.json

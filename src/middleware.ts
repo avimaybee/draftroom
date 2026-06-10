@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/request';
-import { verifySession } from './lib/auth.js';
+import { NextResponse, type NextRequest } from 'next/server';
+import { verifySession } from './lib/auth';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

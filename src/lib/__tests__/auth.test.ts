@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { verifySession } from '../auth.js';
+import { verifySession } from '../auth';
 
 test('auth guard', async (t) => {
   await t.test('verifySession should return null for missing session', async () => {
