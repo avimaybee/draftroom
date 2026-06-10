@@ -7,3 +7,5 @@ dist
 .system_generated
 .gemini
 package-lock.json
+.wrangler
+.wrangler/
