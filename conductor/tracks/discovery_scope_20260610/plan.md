@@ -6,10 +6,10 @@
 
 ### Tasks
 - [~] Task: Scope Database Schema
-    - [ ] Add `Scope` model to Drizzle schema.
+    - [x] Add `Scope` model to Drizzle schema. (121eb60)
     - [ ] Create and run database migration.
-- [ ] Task: Scope CRUD Interface
-    - [ ] Write unit tests for Scope creation/retrieval.
+- [~] Task: Scope CRUD Interface
+    - [x] Write unit tests for Scope creation/retrieval. (121eb60)
     - [ ] Build the UI to create and list active scopes.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Scope Data Model & UI' (Protocol in workflow.md)
 
