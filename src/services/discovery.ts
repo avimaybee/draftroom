@@ -1,13 +1,14 @@
+import { Db } from '../db';
 import { eq } from 'drizzle-orm';
 import { discoveryScopes, candidateLeads } from '../db/schema/discovery';
 import { leads, activities } from '../db/schema/core';
 import { CreateDiscoveryScopeInput, CreateCandidateLeadInput } from '../db/models/discovery';
 
 export class DiscoveryService {
-  constructor(private db: any) {}
+  constructor(private db: Db) {}
 
   async createScope(id: string, input: CreateDiscoveryScopeInput) {
-    const now = new Date().toISOString();
+    const now = new Date();
     await this.db.insert(discoveryScopes).values({
       id,
       name: input.name,
@@ -33,7 +34,7 @@ export class DiscoveryService {
   }
 
   async createCandidateLead(id: string, input: CreateCandidateLeadInput) {
-    const now = new Date().toISOString();
+    const now = new Date();
     await this.db.insert(candidateLeads).values({
       id,
       discoveryScopeId: input.discoveryScopeId ?? null,
@@ -57,7 +58,7 @@ export class DiscoveryService {
   }
 
   async updateCandidateStatus(candidateId: string, status: 'NEW' | 'REVIEWED' | 'PROMOTED' | 'DISCARDED') {
-    const now = new Date().toISOString();
+    const now = new Date();
     await this.db
       .update(candidateLeads)
       .set({ status, updatedAt: now })
@@ -68,7 +69,6 @@ export class DiscoveryService {
   }
 
   async promoteCandidate(candidateId: string, ownerId: string) {
-    const nowStr = new Date().toISOString();
     const now = new Date();
 
     // 1. Fetch the candidate
@@ -110,7 +110,7 @@ export class DiscoveryService {
       .set({
         status: 'PROMOTED',
         promotedLeadId: leadId,
-        updatedAt: nowStr,
+        updatedAt: now,
       })
       .where(eq(candidateLeads.id, candidateId));
 

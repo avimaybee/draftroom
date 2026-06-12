@@ -202,15 +202,16 @@ Responsibilities:
 - query support for dashboard and lead views.
 - historical trace storage.
 
-### 4.3 Background job worker
+### 4.3 Background job worker (Cloudflare Workflows)
 
 Responsibilities:
 
-- execute long-running tasks.
-- retry safe operations where appropriate.
-- update run status.
+- execute long-running tasks via durable `@cloudflare/workflows`.
+- break complex operations (e.g., fetch site -> call LLM) into isolated `step()` functions.
+- retry safe operations where appropriate without failing the entire job.
+- update run status in the `job_runs` table.
 - persist partial and final outputs.
-- record failures cleanly.
+- record failures cleanly and ensure the UI can poll for completion.
 
 ### 4.4 AI service adapter layer
 

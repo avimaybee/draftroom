@@ -1,9 +1,10 @@
+import { Db } from '../db';
 import { eq, desc } from 'drizzle-orm';
 import { leads, activities, tasks, notes } from '../db/schema/core';
 import { CreateLeadInput } from '../db/models/lead';
 
 export class LeadService {
-  constructor(private db: any) {}
+  constructor(private db: Db) {}
 
   async createLead(input: CreateLeadInput) {
     const id = crypto.randomUUID();
@@ -164,13 +165,15 @@ export class LeadService {
       updatedAt: now,
     }).where(eq(tasks.id, taskId));
 
-    await this.db.insert(activities).values({
-      id: crypto.randomUUID(),
-      leadId: oldTask.leadId,
-      type: 'Task updated',
-      summary: `Task "${oldTask.title}" marked as ${newStatus}`,
-      timestamp: now,
-    });
+    if (oldTask.leadId) {
+      await this.db.insert(activities).values({
+        id: crypto.randomUUID(),
+        leadId: oldTask.leadId,
+        type: 'Task updated',
+        summary: `Task "${oldTask.title}" marked as ${newStatus}`,
+        timestamp: now,
+      });
+    }
 
     const [task] = await this.db.select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
     return task;

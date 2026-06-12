@@ -22,6 +22,8 @@ export const leads = sqliteTable('leads', {
   industry: text('industry'),
   stage: text('stage').notNull().default('New'),
   status: text('status').notNull().default('Active'),
+  triagePriority: text('triage_priority').default('UNASSESSED'),
+  triageReason: text('triage_reason'),
   ownerId: text('owner_id').references(() => users.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
@@ -54,4 +56,14 @@ export const activities = sqliteTable('activities', {
   type: text('type').notNull(),
   summary: text('summary').notNull(),
   timestamp: integer('timestamp', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
+export const providerConfigs = sqliteTable('provider_configs', {
+  id: text('id').primaryKey(),
+  provider: text('provider').notNull().unique(), // 'gemini' | 'nvidia'
+  apiKey: text('api_key').notNull(),
+  modelName: text('model_name').notNull(),
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });

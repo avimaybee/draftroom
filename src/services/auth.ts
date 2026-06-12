@@ -1,10 +1,11 @@
+import { Db } from '../db';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { encrypt } from '../lib/auth';
 
 export class AuthService {
-  constructor(private db: any) {}
+  constructor(private db: Db) {}
 
   async createUser(name: string, email: string, password: string) {
     const hashedPassword = await bcrypt.hash(password, 10);

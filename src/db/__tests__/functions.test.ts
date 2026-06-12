@@ -91,6 +91,8 @@ function setupTestDb() {
       industry TEXT,
       stage TEXT NOT NULL DEFAULT 'New',
       status TEXT NOT NULL DEFAULT 'Active',
+      triage_priority TEXT DEFAULT 'UNASSESSED',
+      triage_reason TEXT,
       owner_id TEXT REFERENCES users(id),
       created_at INTEGER,
       updated_at INTEGER
@@ -104,6 +106,16 @@ function setupTestDb() {
       timestamp INTEGER
     );
 
+    CREATE TABLE provider_configs (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL UNIQUE,
+      api_key TEXT NOT NULL,
+      model_name TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      created_at INTEGER,
+      updated_at INTEGER
+    );
+
     CREATE TABLE discovery_scopes (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -115,8 +127,8 @@ function setupTestDb() {
       digital_presence_filter TEXT,
       notes TEXT,
       created_by_user_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
 
     CREATE TABLE candidate_leads (
@@ -129,8 +141,8 @@ function setupTestDb() {
       notes TEXT,
       status TEXT NOT NULL DEFAULT 'NEW',
       promoted_lead_id TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
   `);
 

@@ -46,10 +46,10 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8 bg-slate-900/40 backdrop-blur-2xl p-10 rounded-3xl shadow-2xl border border-slate-800/80 relative z-10">
         <div className="text-center">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20 mx-auto mb-6 text-xl">
-            G
+            D
           </div>
           <h2 className="text-3xl font-extrabold tracking-tight text-white">
-            Growth OS
+            Draftroom
           </h2>
           <p className="mt-2 text-sm font-semibold text-slate-400">
             Internal Agency Access

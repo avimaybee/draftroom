@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { DiscoveryService } from '../../src/services/discovery';
 import { discoveryScopes } from '../../src/db/schema/discovery';
 import { CreateDiscoveryScopeSchema } from '../../src/db/models/discovery';
+import * as schema from '../../src/db/schema';
 
 interface Env {
   DB: D1Database;
@@ -12,7 +13,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const url = context.request ? new URL(context.request.url) : null;
     const id = url?.searchParams.get('id');
-    const db = drizzle(context.env.DB);
+    const db = drizzle(context.env.DB, { schema });
     const service = new DiscoveryService(db);
 
     if (id) {
@@ -27,8 +28,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(JSON.stringify({ success: true, data: scopes }), {
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ success: false, error: errMsg }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -46,7 +48,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const db = drizzle(context.env.DB);
+    const db = drizzle(context.env.DB, { schema });
     const service = new DiscoveryService(db);
     
     // Generate a random UUID for the scope
@@ -57,8 +59,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ success: false, error: errMsg }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

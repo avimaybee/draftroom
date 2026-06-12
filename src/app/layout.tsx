@@ -8,8 +8,8 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "AI Agency Growth OS",
-  description: "Internal operating system for agency growth",
+  title: "Draftroom",
+  description: "Internal operating system for Draftroom",
 };
 
 export default function RootLayout({

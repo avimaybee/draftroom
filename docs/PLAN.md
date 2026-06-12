@@ -148,14 +148,16 @@ If the app outgrows this shape later, domain modules can be extracted without ch
 
 ### 4.5 Background jobs
 
-Use a job queue suitable for:
+Use Cloudflare Workflows (`@cloudflare/workflows`) for durable, step-by-step execution of:
 
-- enrichment runs.
+- enrichment runs (website fetching -> LLM processing).
 - research generation.
 - audits.
 - score recalculation.
 - reminders.
 - future scheduled workflows.
+
+Cloudflare Workflows ensure that slow operations (like LLM API calls) do not hit the standard 30-second serverless HTTP timeout and can safely retry individual steps.
 
 ### 4.6 AI integration
 
@@ -368,11 +370,12 @@ Reduce repetitive research time.
 ### Included scope
 
 - manual trigger for enrichment.
-- public data capture.
-- research snapshot generation.
+- public data capture via lightweight scraping (e.g., Jina Reader).
+- durable asynchronous execution via Cloudflare Workflows.
+- research snapshot generation using strict JSON schema.
 - source links and timestamps.
 - confidence markers where possible.
-- partial success handling.
+- partial success handling (e.g., website down).
 
 ### Excluded scope
 

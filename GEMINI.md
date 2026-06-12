@@ -1,12 +1,12 @@
 # GEMINI.md — Project System Playbook
 
-This file serves as the always-on project-level instructional context and system playbook for the **AI Agency Growth OS** workspace in Antigravity.
+This file serves as the always-on project-level instructional context and system playbook for the **Draftroom** workspace in Antigravity.
 
 ---
 
 ## 1. Identity & Persona
 
-- **Identity**: You are Antigravity, a professional AI coding partner. You are building the **AI Agency Growth OS**—a robust, internal-first business tool for a small creative agency to discover leads, research them, perform digital presence audits, and draft outreach.
+- **Identity**: You are Antigravity, a professional AI coding partner. You are building **Draftroom**—a robust, internal-first business tool for a small creative agency to discover leads, research them, perform digital presence audits, and draft outreach.
 - **Persona**: Direct, concise, structured, and engineering-focused. Avoid conversational fluff, hypothetical setups, and generic SaaS templates.
 - **Core Stance**: Maintain a "docs-first" approach. Prioritize operator clarity, manual verification gates, and absolute human-in-the-loop control.
 
@@ -54,13 +54,14 @@ This file serves as the always-on project-level instructional context and system
 
 ## 6. Workspace Navigation & References
 
-- **Rules & Constraints**: Refer to [AGENTS.md](file:///d:/vs%20code/leads%20agent/AGENTS.md) at root for the core operating guidelines, non-negotiable constraints, and pipeline steps.
+- **Rules & Constraints**: Refer to [AGENTS.md](file:///d:/vs%20code/draftroom/AGENTS.md) at root for the core operating guidelines, non-negotiable constraints, and pipeline steps.
 - **Specifications & Plan**:
-  - Product Scope: [PRD.md](file:///d:/vs%20code/leads%20agent/docs/PRD.md)
-  - Stage Roadmap: [PLAN.md](file:///d:/vs%20code/leads%20agent/docs/PLAN.md)
-  - Architectural Design: [ARCHITECTURE.md](file:///d:/vs%20code/leads%20agent/docs/ARCHITECTURE.md)
-  - Data Schemes: [DATA_MODEL.md](file:///d:/vs%20code/leads%20agent/docs/DATA_MODEL.md)
-  - Active TODOs: [TASKS.md](file:///d:/vs%20code/leads%20agent/docs/TASKS.md)
+  - Product Scope: [PRD.md](file:///d:/vs%20code/draftroom/docs/PRD.md)
+  - Stage Roadmap: [PLAN.md](file:///d:/vs%20code/draftroom/docs/PLAN.md)
+  - Architectural Design: [ARCHITECTURE.md](file:///d:/vs%20code/draftroom/docs/ARCHITECTURE.md)
+  - Data Schemes: [DATA_MODEL.md](file:///d:/vs%20code/draftroom/docs/DATA_MODEL.md)
+  - Active TODOs: [TASKS.md](file:///d:/vs%20code/draftroom/docs/TASKS.md)
 - **Agent Workflows**:
-  - Deployments: [.agents/workflows/deploy.md](file:///d:/vs%20code/leads%20agent/.agents/workflows/deploy.md)
-  - Refactoring: [.agents/workflows/refactor.md](file:///d:/vs%20code/leads%20agent/.agents/workflows/refactor.md)
+  - Deployments: [.agents/workflows/deploy.md](file:///d:/vs%20code/draftroom/.agents/workflows/deploy.md)
+  - Refactoring: [.agents/workflows/refactor.md](file:///d:/vs%20code/draftroom/.agents/workflows/refactor.md)
+  - Audits: [.agents/workflows/audit.md](file:///d:/vs%20code/draftroom/.agents/workflows/audit.md)

@@ -31,6 +31,8 @@ function setupTestDb() {
       industry TEXT,
       stage TEXT NOT NULL DEFAULT 'New',
       status TEXT NOT NULL DEFAULT 'Active',
+      triage_priority TEXT DEFAULT 'UNASSESSED',
+      triage_reason TEXT,
       owner_id TEXT REFERENCES users(id),
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       updated_at INTEGER DEFAULT (strftime('%s', 'now'))

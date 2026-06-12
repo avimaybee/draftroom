@@ -1,4 +1,4 @@
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 export const discoveryScopes = sqliteTable('discovery_scopes', {
   id: text('id').primaryKey(),
@@ -11,8 +11,8 @@ export const discoveryScopes = sqliteTable('discovery_scopes', {
   digitalPresenceFilter: text('digital_presence_filter'),
   notes: text('notes'),
   createdByUserId: text('created_by_user_id').notNull(),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
 
 export const candidateLeads = sqliteTable('candidate_leads', {
@@ -25,6 +25,7 @@ export const candidateLeads = sqliteTable('candidate_leads', {
   notes: text('notes'),
   status: text('status').$type<'NEW' | 'REVIEWED' | 'PROMOTED' | 'DISCARDED'>().default('NEW').notNull(),
   promotedLeadId: text('promoted_lead_id'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
+

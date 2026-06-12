@@ -33,6 +33,8 @@ function setupTestDb() {
       industry TEXT,
       stage TEXT NOT NULL DEFAULT 'New',
       status TEXT NOT NULL DEFAULT 'Active',
+      triage_priority TEXT DEFAULT 'UNASSESSED',
+      triage_reason TEXT,
       owner_id TEXT REFERENCES users(id),
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       updated_at INTEGER DEFAULT (strftime('%s', 'now'))
@@ -44,6 +46,16 @@ function setupTestDb() {
       type TEXT NOT NULL,
       summary TEXT NOT NULL,
       timestamp INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+
+    CREATE TABLE provider_configs (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL UNIQUE,
+      api_key TEXT NOT NULL,
+      model_name TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
 
     CREATE TABLE job_runs (
@@ -73,6 +85,7 @@ function setupTestDb() {
       opportunity_hypotheses TEXT,
       sources TEXT,
       confidence_level TEXT NOT NULL DEFAULT 'UNKNOWN',
+      user_remarks TEXT,
       job_run_id TEXT REFERENCES job_runs(id),
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       updated_at INTEGER DEFAULT (strftime('%s', 'now'))

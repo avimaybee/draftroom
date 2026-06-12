@@ -43,7 +43,7 @@ export default async function DashboardPage() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-8 md:p-10 shadow-xl border border-slate-800">
         <div className="relative z-10 max-w-2xl">
           <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-            AI Agency Growth OS
+            Draftroom
           </h1>
           <p className="mt-3 text-lg text-slate-300">
             Welcome back. Here is the status of your agency's growth pipeline and active client discovery.
@@ -186,7 +186,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="mt-8 pt-4 border-t border-slate-100 text-xs text-slate-400 font-medium">
-            AI Agency Growth OS v1.0.0
+            Draftroom v1.0.0
           </div>
         </div>
       </div>

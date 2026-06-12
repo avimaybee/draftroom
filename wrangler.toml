@@ -1,7 +1,17 @@
-name = "ai-agency-growth-os"
+name = "draftroom"
 pages_build_output_dir = ".next"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "ai-agency-growth-os"
+database_name = "draftroom"
 database_id = "local-db"
+
+# [[workflows]]
+# name = "research-workflow"
+# binding = "RESEARCH_SNAPSHOT_WORKFLOW"
+# class_name = "ResearchSnapshotWorkflow"
+
+# [[workflows]]
+# name = "triage-workflow"
+# binding = "TRIAGE_WORKFLOW"
+# class_name = "TriageWorkflow"

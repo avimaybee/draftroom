@@ -1,7 +1,7 @@
 {
-  "name": "ai-agency-growth-os",
+  "name": "draftroom",
   "version": "1.0.0",
-  "description": "Internal operating system for agency growth",
+  "description": "Internal operating system for Draftroom",
   "scripts": {
     "dev": "concurrently \"next dev\" \"wrangler pages dev public --proxy 3000 --port 8788 --compatibility-flag=nodejs_compat\"",
     "build": "next build",
@@ -9,9 +9,11 @@
     "lint": "next lint",
     "test": "node --import tsx --test src/**/*.test.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply ai-agency-growth-os --local"
+    "db:migrate": "wrangler d1 migrations apply draftroom --local",
+    "db:seed": "node --import tsx src/db/seed.ts"
   },
   "dependencies": {
+    "apify-client": "^2.23.4",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",

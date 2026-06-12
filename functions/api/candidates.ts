@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { DiscoveryService } from '../../src/services/discovery';
 import { CreateCandidateLeadSchema } from '../../src/db/models/discovery';
+import * as schema from '../../src/db/schema';
 
 interface Env {
   DB: D1Database;
@@ -17,14 +18,15 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const db = drizzle(context.env.DB);
+    const db = drizzle(context.env.DB, { schema });
     const service = new DiscoveryService(db);
     const candidates = await service.listCandidatesByScope(scopeId);
     return new Response(JSON.stringify({ success: true, data: candidates }), {
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ success: false, error: errMsg }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -42,7 +44,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const db = drizzle(context.env.DB);
+    const db = drizzle(context.env.DB, { schema });
     const service = new DiscoveryService(db);
 
     const id = crypto.randomUUID();
@@ -52,8 +54,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ success: false, error: errMsg }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -75,7 +78,7 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const db = drizzle(context.env.DB);
+    const db = drizzle(context.env.DB, { schema });
     const service = new DiscoveryService(db);
 
     if (status === 'PROMOTED') {
@@ -95,8 +98,9 @@ export const onRequestPatch: PagesFunction<Env> = async (context) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-  } catch (error: any) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ success: false, error: errMsg }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

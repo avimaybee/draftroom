@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository is for building an internal-first product called **AI Agency Growth OS**.
+This repository is for building an internal-first product called **Draftroom**.
 
 The product is a practical business system for a small creative agency that wants to:
 

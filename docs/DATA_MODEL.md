@@ -185,6 +185,8 @@ Essential fields:
 - source_id (nullable; reference id, e.g. DiscoveryScope or import batch)
 - status (enum: ACTIVE, ARCHIVED)
 - stage (enum representing pipeline stage; see pipeline docs later)
+- triage_priority (enum: HIGH, MEDIUM, SKIP, UNASSESSED)
+- triage_reason (nullable, text)
 - owner_user_id (FK -> User.id, nullable for now)
 - created_by_user_id (FK -> User.id)
 - created_at
@@ -194,6 +196,7 @@ Essential fields:
 Notes:
 
 - Stage values should align with the pipeline design (new, researching, qualified, etc.).
+- `triage_priority` and `triage_reason` store the results of the automated first-pass triage AI.
 - Keep Lead focused on stable profile fields and high-level lifecycle flags.
 
 ### 5.3 Contact

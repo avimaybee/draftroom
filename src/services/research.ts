@@ -1,10 +1,11 @@
+import { Db } from '../db';
 import { eq, desc, and, isNull } from 'drizzle-orm';
 import { jobRuns, researchSnapshots, contacts } from '../db/schema/research';
 import { leads, activities } from '../db/schema/core';
 import { generateResearch } from '../lib/ai';
 
 export class ResearchService {
-  constructor(private db: any) {}
+  constructor(private db: Db) {}
 
   async enrichLead(leadId: string, triggeredByUserId?: string | null) {
     const jobId = crypto.randomUUID();
@@ -30,6 +31,7 @@ export class ResearchService {
 
       // Generate AI research
       const research = await generateResearch(
+        this.db,
         lead.name,
         lead.company || null,
         lead.website || null,

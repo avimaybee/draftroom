@@ -287,6 +287,8 @@ A research snapshot may include:
 #### Acceptance criteria
 
 - A lead can have multiple research snapshots over time.
+- Research generation leverages durable background execution (e.g. Cloudflare Workflows) to prevent timeouts and handle partial failures safely.
+- Snapshot content is based on actual scraped website data (e.g. via Jina Reader), not AI hallucination.
 - Each snapshot stores generation timestamp.
 - Snapshot content is editable by a human.
 - Snapshot can store linked source references.

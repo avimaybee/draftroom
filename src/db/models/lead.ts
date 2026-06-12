@@ -10,7 +10,7 @@ export const CreateLeadSchema = z.object({
   city: z.string().optional().nullable(),
   region: z.string().optional().nullable(),
   industry: z.string().optional().nullable(),
-  stage: z.string().optional().nullable(),
+  stage: z.string().optional(),
   ownerId: z.string().optional().nullable(),
 });
 
@@ -24,5 +24,5 @@ export type CreateLeadInput = {
   city?: string | null;
   region?: string | null;
   industry?: string | null;
-  stage?: string | null;
+  stage?: string;
 };

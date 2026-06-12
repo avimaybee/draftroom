@@ -16,7 +16,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = [
     { name: 'Dashboard', href: '/' },
     { name: 'Leads', href: '/leads' },
+    { name: 'Discovery', href: '/discovery' },
     { name: 'Discovery Scopes', href: '/scopes' },
+    { name: 'Integrations', href: '/settings/integrations' },
   ];
 
   return (
@@ -25,10 +27,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside className="w-68 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col hidden md:flex shrink-0">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-black shadow-md shadow-indigo-500/20">
-            G
+            D
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white leading-tight">Growth OS</h1>
+            <h1 className="text-lg font-bold tracking-tight text-white leading-tight">Draftroom</h1>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Internal OS</span>
           </div>
         </div>

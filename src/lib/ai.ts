@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Db } from '../db';
 
 export const AIResearchSchema = z.object({
   companySummary: z.string(),
@@ -14,13 +15,36 @@ export const AIResearchSchema = z.object({
 
 export type AIResearchOutput = z.infer<typeof AIResearchSchema>;
 
+import { IntegrationsService } from '../services/integrations';
+
 export async function generateResearch(
+  db: Db,
   leadName: string,
   companyName: string | null,
   websiteUrl: string | null,
-  industry: string | null
+  industry: string | null,
+  scrapedContent?: string | null
 ): Promise<AIResearchOutput> {
-  const apiKey = (process as any).env?.GEMINI_API_KEY;
+  const integrationsService = new IntegrationsService(db);
+  
+  // Get active provider config
+  let config = null;
+  for (const p of ['openrouter', 'nvidia', 'groq', 'gemini']) {
+    const pConfig = await integrationsService.getProviderConfig(p);
+    if (pConfig && pConfig.isActive) {
+      config = pConfig;
+      break;
+    }
+  }
+
+  let provider = config?.provider || 'gemini';
+  let apiKey = config?.apiKey || (process as any).env?.GEMINI_API_KEY;
+  let modelName = config?.modelName || (
+    provider === 'openrouter' ? 'google/gemini-2.5-flash' : 
+    provider === 'nvidia' ? 'meta/llama-3.1-70b-instruct' : 
+    provider === 'groq' ? 'llama3-70b-8192' :
+    'gemini-2.5-flash'
+  );
 
   if (!apiKey || apiKey === 'placeholder' || apiKey === '') {
     return generateMockResearch(leadName, companyName, websiteUrl, industry);
@@ -33,6 +57,7 @@ export async function generateResearch(
   const prompt = `Perform research on the company "${name}".
 Industry: ${ind}
 Website: ${web}
+${scrapedContent ? `\nHere is the scraped content of their website to analyze:\n--- START OF WEBSITE CONTENT ---\n${scrapedContent}\n--- END OF WEBSITE CONTENT ---\n` : ''}
 
 Generate a comprehensive digital presence audit and outreach opportunity hypotheses for our creative/digital agency.
 Provide your response strictly in JSON format. The response must match the following JSON schema:
@@ -48,9 +73,22 @@ Provide your response strictly in JSON format. The response must match the follo
   "confidenceLevel": "LOW", "MEDIUM", or "HIGH"
 }`;
 
+  if (provider === 'openrouter') {
+    return callOpenRouterAPI(apiKey, modelName, prompt, leadName, companyName, websiteUrl, industry);
+  }
+
+  if (provider === 'nvidia') {
+    return callNvidiaAPI(apiKey, modelName, prompt, leadName, companyName, websiteUrl, industry);
+  }
+
+  if (provider === 'groq') {
+    return callGroqAPI(apiKey, modelName, prompt, leadName, companyName, websiteUrl, industry);
+  }
+
+  // Gemini implementation
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -108,7 +146,15 @@ Provide your response strictly in JSON format. The response must match the follo
       throw new Error(`Gemini API returned status ${response.status}`);
     }
 
-    const data = await response.json() as any;
+    const data = (await response.json()) as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{
+            text?: string;
+          }>;
+        };
+      }>;
+    };
     const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!textResult) {
       throw new Error('Invalid response structure from Gemini API');
@@ -116,8 +162,152 @@ Provide your response strictly in JSON format. The response must match the follo
 
     const parsed = JSON.parse(textResult);
     return AIResearchSchema.parse(parsed);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Gemini API call failed, falling back to mock generator:', error);
+    return generateMockResearch(leadName, companyName, websiteUrl, industry);
+  }
+}
+
+async function callNvidiaAPI(
+  apiKey: string,
+  modelName: string,
+  prompt: string,
+  leadName: string,
+  companyName: string | null,
+  websiteUrl: string | null,
+  industry: string | null
+): Promise<AIResearchOutput> {
+  const jsonSchema = {
+    type: 'object',
+    properties: {
+      companySummary: { type: 'string' },
+      productsServicesSummary: { type: 'string' },
+      digitalPresenceNotes: { type: 'string' },
+      websiteNotes: { type: 'string' },
+      brandingNotes: { type: 'string' },
+      painPointsHypotheses: { type: 'string' },
+      opportunityHypotheses: { type: 'string' },
+      sources: {
+        type: 'array',
+        items: { type: 'string' },
+      },
+      confidenceLevel: {
+        type: 'string',
+        enum: ['LOW', 'MEDIUM', 'HIGH'],
+      },
+    },
+    required: [
+      'companySummary',
+      'productsServicesSummary',
+      'digitalPresenceNotes',
+      'websiteNotes',
+      'brandingNotes',
+      'painPointsHypotheses',
+      'opportunityHypotheses',
+      'sources',
+      'confidenceLevel',
+    ],
+    additionalProperties: false,
+  };
+
+  const makeRequest = async (format: any, isFallback: boolean = false) => {
+    const messages = [
+      {
+        role: 'system',
+        content: isFallback 
+          ? 'You are a professional research assistant. You MUST respond with ONLY valid JSON matching the exact schema requested. Do not include markdown code blocks or any other text.' 
+          : 'You are a professional research assistant. Output strictly in JSON.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+
+    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages,
+        max_tokens: 1024,
+        temperature: 0.2,
+        response_format: format,
+      }),
+    });
+
+    return response;
+  };
+
+  try {
+    // 1. Try strict JSON schema
+    let response = await makeRequest({
+      type: 'json_schema',
+      json_schema: {
+        name: 'ai_research',
+        schema: jsonSchema,
+        strict: true
+      }
+    });
+
+    // 2. Catch API errors (e.g. 400/422 unsupported parameter) and fallback
+    if (!response.ok && (response.status === 400 || response.status === 422)) {
+      console.warn(`NVIDIA API strict schema failed (${response.status}), falling back to json_object`);
+      response = await makeRequest({ type: 'json_object' }, true);
+    }
+
+    if (!response.ok) {
+      throw new Error(`NVIDIA API returned status ${response.status}`);
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    };
+    let textResult = data.choices?.[0]?.message?.content;
+    
+    if (!textResult) {
+      throw new Error('Invalid response structure from NVIDIA API');
+    }
+
+    // Defensive parsing: Strip markdown if present
+    textResult = textResult.trim();
+    if (textResult.startsWith('```json')) {
+      textResult = textResult.replace(/^```json\n/, '').replace(/\n```$/, '');
+    } else if (textResult.startsWith('```')) {
+      textResult = textResult.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(textResult);
+    } catch (parseError: unknown) {
+      console.error('Failed to parse NVIDIA JSON output on first attempt. Retrying with reinforced prompt.');
+      // 3. Retry once with a reinforced prompt
+      const retryResponse = await makeRequest({ type: 'json_object' }, true);
+      if (!retryResponse.ok) throw new Error('Retry failed');
+      const retryData = (await retryResponse.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      };
+      let retryText = retryData.choices?.[0]?.message?.content || '';
+      retryText = retryText.trim().replace(/^```json\n/, '').replace(/\n```$/, '');
+      parsed = JSON.parse(retryText);
+    }
+
+    // 4. Validate schema conformance via Zod
+    return AIResearchSchema.parse(parsed);
+  } catch (error: unknown) {
+    console.error('NVIDIA API call failed, falling back to mock generator:', error);
     return generateMockResearch(leadName, companyName, websiteUrl, industry);
   }
 }
@@ -171,3 +361,333 @@ function generateMockResearch(
     confidenceLevel: 'MEDIUM',
   };
 }
+
+async function callOpenRouterAPI(
+  apiKey: string,
+  modelName: string,
+  prompt: string,
+  leadName: string,
+  companyName: string | null,
+  websiteUrl: string | null,
+  industry: string | null
+): Promise<AIResearchOutput> {
+  const makeRequest = async () => {
+    const messages = [
+      {
+        role: 'system',
+        content: 'You are a professional research assistant. You MUST respond with ONLY valid JSON matching the exact schema requested. Do not include markdown code blocks or any other text.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://github.com/googlemind/draftroom',
+        'X-Title': 'Draftroom',
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages,
+        temperature: 0.2,
+        response_format: { type: 'json_object' }
+      }),
+    });
+
+    return response;
+  };
+
+  try {
+    const response = await makeRequest();
+    if (!response.ok) {
+      throw new Error(`OpenRouter API returned status ${response.status}`);
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    };
+    let textResult = data.choices?.[0]?.message?.content;
+    
+    if (!textResult) {
+      throw new Error('Invalid response structure from OpenRouter API');
+    }
+
+    textResult = textResult.trim();
+    if (textResult.startsWith('```json')) {
+      textResult = textResult.replace(/^```json\n/, '').replace(/\n```$/, '');
+    } else if (textResult.startsWith('```')) {
+      textResult = textResult.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    const parsed = JSON.parse(textResult);
+    return AIResearchSchema.parse(parsed);
+  } catch (error: unknown) {
+    console.error('OpenRouter API call failed, falling back to mock generator:', error);
+    return generateMockResearch(leadName, companyName, websiteUrl, industry);
+  }
+}
+
+export async function runTriageAI(
+  db: Db,
+  scrapedContent: string
+): Promise<{ status: 'MODERN' | 'OUTDATED'; reason: string }> {
+  const integrationsService = new IntegrationsService(db);
+  
+  // Get active provider config
+  let config = null;
+  for (const p of ['openrouter', 'nvidia', 'groq', 'gemini']) {
+    const pConfig = await integrationsService.getProviderConfig(p);
+    if (pConfig && pConfig.isActive) {
+      config = pConfig;
+      break;
+    }
+  }
+
+  const provider = config?.provider || 'gemini';
+  const apiKey = config?.apiKey || (process as any).env?.GEMINI_API_KEY;
+  const modelName = config?.modelName || (
+    provider === 'openrouter' ? 'google/gemini-2.5-flash' : 
+    provider === 'nvidia' ? 'meta/llama-3.1-70b-instruct' : 
+    provider === 'groq' ? 'llama3-70b-8192' : 
+    'gemini-2.5-flash'
+  );
+
+  if (!apiKey || apiKey === 'placeholder' || apiKey === '') {
+    return { status: 'OUTDATED', reason: 'Triage fallback (No API Key configured).' };
+  }
+
+  const prompt = `
+    You are an expert digital agency auditor. Analyze the following homepage content for a local business.
+    Your task is to determine if the site is MODERN or OUTDATED.
+    
+    Guidelines:
+    - Look for signs of outdated practices: "copyright 2012", generic directory listings, flash, tables, lack of mobile keywords.
+    - If it looks very simple, sparse, broken, or old -> OUTDATED
+    - If it seems comprehensive and well structured -> MODERN
+    
+    Respond in exactly this JSON format:
+    {
+      "status": "MODERN" | "OUTDATED",
+      "reason": "A 1-sentence explanation of why."
+    }
+    
+    Website Content:
+    ---
+    ${scrapedContent}
+    ---
+  `;
+
+  try {
+    if (provider === 'openrouter') {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://github.com/googlemind/draftroom',
+          'X-Title': 'Draftroom',
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [
+            { role: 'system', content: 'You are a professional assistant. You MUST respond with ONLY valid JSON matching the exact schema requested.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.2,
+          response_format: { type: 'json_object' }
+        }),
+      });
+      if (!res.ok) throw new Error(`OpenRouter returned status ${res.status}`);
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      return JSON.parse(text || '{}');
+    }
+
+    if (provider === 'nvidia') {
+      const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [
+            { role: 'system', content: 'You are a professional assistant. You MUST respond with ONLY valid JSON matching the exact schema requested.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.2,
+          response_format: { type: 'json_object' }
+        }),
+      });
+      if (!res.ok) throw new Error(`NVIDIA returned status ${res.status}`);
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      return JSON.parse(text || '{}');
+    }
+
+    if (provider === 'groq') {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [
+            { role: 'system', content: 'You are a professional assistant. You MUST respond with ONLY valid JSON matching the exact schema requested.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.2,
+          response_format: { type: 'json_object' }
+        }),
+      });
+      if (!res.ok) throw new Error(`Groq returned status ${res.status}`);
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string;
+          };
+        }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      return JSON.parse(text || '{}');
+    }
+
+    // Gemini
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                status: { type: 'STRING', enum: ['MODERN', 'OUTDATED'] },
+                reason: { type: 'STRING' },
+              },
+              required: ['status', 'reason'],
+            },
+          },
+        }),
+      }
+    );
+    if (!res.ok) throw new Error(`Gemini returned status ${res.status}`);
+    const data = (await res.json()) as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{
+            text?: string;
+          }>;
+        };
+      }>;
+    };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return JSON.parse(text || '{}');
+
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[Triage AI] Error running triage completion:', err);
+    return { status: 'OUTDATED', reason: `Triage generation failed: ${errMsg}` };
+  }
+}
+
+async function callGroqAPI(
+  apiKey: string,
+  modelName: string,
+  prompt: string,
+  leadName: string,
+  companyName: string | null,
+  websiteUrl: string | null,
+  industry: string | null
+): Promise<AIResearchOutput> {
+  const makeRequest = async () => {
+    const messages = [
+      {
+        role: 'system',
+        content: 'You are a professional research assistant. You MUST respond with ONLY valid JSON matching the exact schema requested. Do not include markdown code blocks or any other text.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages,
+        temperature: 0.2,
+        response_format: { type: 'json_object' }
+      }),
+    });
+
+    return response;
+  };
+
+  try {
+    const response = await makeRequest();
+    if (!response.ok) {
+      throw new Error(`Groq API returned status ${response.status}`);
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    };
+    let textResult = data.choices?.[0]?.message?.content;
+    
+    if (!textResult) {
+      throw new Error('Invalid response structure from Groq API');
+    }
+
+    textResult = textResult.trim();
+    if (textResult.startsWith('```json')) {
+      textResult = textResult.replace(/^```json\n/, '').replace(/\n```$/, '');
+    } else if (textResult.startsWith('```')) {
+      textResult = textResult.replace(/^```\n/, '').replace(/\n```$/, '');
+    }
+
+    const parsed = JSON.parse(textResult);
+    return AIResearchSchema.parse(parsed);
+  } catch (error: unknown) {
+    console.error('Groq API call failed, falling back to mock generator:', error);
+    return generateMockResearch(leadName, companyName, websiteUrl, industry);
+  }
+}
+
+

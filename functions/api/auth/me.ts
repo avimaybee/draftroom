@@ -2,6 +2,7 @@ import { decrypt } from '../../../src/lib/auth';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { users } from '../../../src/db/schema/core';
+import * as schema from '../../../src/db/schema';
 
 interface Env {
   DB: D1Database;
@@ -28,7 +29,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       });
     }
 
-    const db = drizzle(context.env.DB);
+    const db = drizzle(context.env.DB, { schema });
     const [user] = await db
       .select({ id: users.id, name: users.name, email: users.email })
       .from(users)
@@ -45,8 +46,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return new Response(JSON.stringify({ user }), {
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Internal server error';
+    return new Response(JSON.stringify({ error: errMsg }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
