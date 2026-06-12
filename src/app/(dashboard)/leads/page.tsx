@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { LeadService } from '@/services/lead';
 import { getDb } from '@/db';
 import Link from 'next/link';

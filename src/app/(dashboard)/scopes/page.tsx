@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { DiscoveryService } from '@/services/discovery';
 import { getDb } from '@/db';
 import Link from 'next/link';
