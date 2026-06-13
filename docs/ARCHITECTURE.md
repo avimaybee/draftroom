@@ -207,7 +207,8 @@ Responsibilities:
 Responsibilities:
 
 - execute long-running tasks via durable `@cloudflare/workflows`.
-- break complex operations (e.g., fetch site -> call LLM) into isolated `step()` functions.
+- break complex operations (e.g., fetch site -> call LLM) into isolated `step()` functions using `step.sleep()` for polling and `step.waitForEvent()` for approvals.
+- run native edge scraping using Cloudflare Browser Run for deep website research and audits.
 - retry safe operations where appropriate without failing the entire job.
 - update run status in the `job_runs` table.
 - persist partial and final outputs.
@@ -228,6 +229,8 @@ Responsibilities:
 Responsibilities:
 
 - connect to external enrichment or communication providers.
+- use Apify for broad candidate discovery and list generation (Stage 2).
+- use Cloudflare Browser Run (Playwright) for deep individual website fetching and rendering (Stage 3 & 4).
 - enforce provider-specific constraints.
 - normalize outputs into internal shapes.
 

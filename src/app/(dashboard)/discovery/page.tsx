@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface DiscoveryLead {
-  id?: string; // local UI id
+  id?: string;
   name: string;
   website: string | null;
   phone: string | null;
@@ -13,23 +13,81 @@ interface DiscoveryLead {
   sourceUrl: string | null;
 }
 
+type SearchPhase = 'idle' | 'starting' | 'waiting' | 'results' | 'error';
+
 export default function DiscoveryPage() {
   const router = useRouter();
   const [niche, setNiche] = useState('');
   const [location, setLocation] = useState('');
   const [limit, setLimit] = useState(20);
-  
-  const [isSearching, setIsSearching] = useState(false);
+
+  const [phase, setPhase] = useState<SearchPhase>('idle');
   const [isImporting, setIsImporting] = useState(false);
   const [results, setResults] = useState<DiscoveryLead[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+
+  // Polling loop — checks job status updated by background workflow/simulation
+  const checkJobStatus = useCallback(
+    async (jobId: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        if (!res.ok) throw new Error('Failed to verify search progress');
+
+        const raw = await res.json() as { status: string; errorSummary?: string };
+
+        if (raw.status === 'COMPLETED') {
+          // Results are already saved as candidate_leads in DB.
+          // Redirect to candidates page so user can review/import them.
+          router.push('/candidates');
+          router.refresh();
+          return true; // done
+        } else if (raw.status === 'FAILED') {
+          setError(raw.errorSummary || 'Discovery search failed. Check your Apify token and try again.');
+          setPhase('error');
+          setPollingJobId(null);
+          return true; // done
+        }
+        return false; // still running
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Polling failed.';
+        setError(msg);
+        setPhase('error');
+        setPollingJobId(null);
+        return true; // stop polling
+      }
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    if (!pollingJobId) return;
+
+    let stopped = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
+      if (stopped) return;
+      const done = await checkJobStatus(pollingJobId);
+      if (!done && !stopped) {
+        timeoutId = setTimeout(poll, 6000); // 6s between polls
+      }
+    };
+
+    poll();
+
+    return () => {
+      stopped = true;
+      clearTimeout(timeoutId);
+    };
+  }, [pollingJobId, checkJobStatus]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!niche || !location) return;
 
-    setIsSearching(true);
+    setPhase('starting');
     setError(null);
     setResults([]);
     setSelectedIds(new Set());
@@ -43,22 +101,17 @@ export default function DiscoveryPage() {
 
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || 'Failed to search');
+        throw new Error(data.error || 'Failed to start search');
       }
 
-      const data = (await res.json()) as { results: DiscoveryLead[] };
-      setResults(data.results || []);
-      
-      // Select all by default
-      const allIndexes = new Set(data.results.map((_, i) => i));
-      setSelectedIds(allIndexes);
-      
+      const data = (await res.json()) as { jobId: string };
+      setPollingJobId(data.jobId);
+      setPhase('waiting');
     } catch (err: unknown) {
       console.error(err);
       const errMsg = err instanceof Error ? err.message : 'An error occurred while searching.';
       setError(errMsg);
-    } finally {
-      setIsSearching(false);
+      setPhase('error');
     }
   };
 
@@ -92,10 +145,8 @@ export default function DiscoveryPage() {
         throw new Error(data.error || 'Failed to import');
       }
 
-      // Success, redirect to leads page
       router.push('/leads');
       router.refresh();
-      
     } catch (err: unknown) {
       console.error(err);
       const errMsg = err instanceof Error ? err.message : 'An error occurred while importing.';
@@ -104,13 +155,15 @@ export default function DiscoveryPage() {
     }
   };
 
+  const isSearching = phase === 'starting' || phase === 'waiting';
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-black text-slate-950 tracking-tight">Discovery Engine</h1>
           <p className="text-sm text-slate-500 font-medium mt-1">
-            Search Google Maps and directories using Apify to import local business leads.
+            Search Google Maps via Apify to discover local business leads. Results are saved automatically.
           </p>
         </div>
       </div>
@@ -125,18 +178,20 @@ export default function DiscoveryPage() {
               onChange={(e) => setNiche(e.target.value)}
               placeholder="e.g. Plumbers, Dentists"
               required
-              className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium transition"
+              disabled={isSearching}
+              className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium transition disabled:opacity-50"
             />
           </div>
           <div className="flex-1 w-full">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">City & State</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">City &amp; State</label>
             <input
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g. Abilene, Texas"
               required
-              className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium transition"
+              disabled={isSearching}
+              className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium transition disabled:opacity-50"
             />
           </div>
           <div className="w-full md:w-32">
@@ -144,7 +199,8 @@ export default function DiscoveryPage() {
             <select
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium transition"
+              disabled={isSearching}
+              className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium transition disabled:opacity-50"
             >
               <option value={10}>10 Leads</option>
               <option value={20}>20 Leads</option>
@@ -168,10 +224,20 @@ export default function DiscoveryPage() {
         )}
       </div>
 
-      {isSearching && (
+      {phase === 'starting' && (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
-          <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          <p className="text-sm font-semibold text-slate-500 animate-pulse">Running Apify Actor to fetch Google Maps results...</p>
+          <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm font-semibold text-slate-500">Starting Apify actor...</p>
+        </div>
+      )}
+
+      {phase === 'waiting' && (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <div className="text-center space-y-1">
+            <p className="text-sm font-semibold text-slate-600">Apify is crawling Google Maps…</p>
+            <p className="text-xs text-slate-400">This typically takes 1–4 minutes. You can stay on this page — results will appear automatically.</p>
+          </div>
         </div>
       )}
 
@@ -192,8 +258,8 @@ export default function DiscoveryPage() {
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100">
                 <tr>
                   <th className="px-4 py-3 w-10 text-center">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       checked={selectedIds.size === results.length}
                       onChange={(e) => {
@@ -215,8 +281,8 @@ export default function DiscoveryPage() {
                 {results.map((lead, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50 transition">
                     <td className="px-4 py-3 text-center">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                         checked={selectedIds.has(idx)}
                         onChange={() => toggleSelect(idx)}

@@ -28,8 +28,24 @@ export function ResearchEmptyState({
       </div>
 
       {(enrichError || jobError) && (
-        <div className="bg-rose-50 border border-rose-100 text-rose-600 p-2.5 rounded-lg text-xs font-semibold max-w-md mx-auto">
-          {enrichError || jobError}
+        <div className="max-w-md mx-auto">
+          {(enrichError || jobError)?.includes('429') ? (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-left text-xs space-y-2">
+              <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                <svg className="w-4.5 h-4.5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Daily Browser Limits Reached
+              </div>
+              <p className="leading-relaxed text-amber-700 font-medium">
+                Cloudflare Browser Run time limit has been exceeded for today (free tier cap). You can input manual research notes below to continue working without interruption.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-rose-50 border border-rose-100 text-rose-600 p-2.5 rounded-lg text-xs font-semibold">
+              {enrichError || jobError}
+            </div>
+          )}
         </div>
       )}
 

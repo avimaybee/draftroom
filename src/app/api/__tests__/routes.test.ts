@@ -137,6 +137,8 @@ function setupTestDb() {
       target_lead_id TEXT REFERENCES leads(id),
       triggered_by_user_id TEXT REFERENCES users(id),
       error_summary TEXT,
+      external_run_id TEXT,
+      job_meta TEXT,
       started_at INTEGER,
       finished_at INTEGER,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))

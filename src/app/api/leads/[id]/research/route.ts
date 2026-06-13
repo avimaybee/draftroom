@@ -1,11 +1,24 @@
 export const dynamic = 'force-dynamic';
 
+/**
+ * POST /api/leads/[id]/research
+ *
+ * Starts an AI research job for a lead. Returns immediately with a jobId.
+ * The frontend must poll POST /api/jobs/[jobId]/advance every ~5 seconds
+ * until status becomes COMPLETED or FAILED.
+ *
+ * When the lead has a website, the Apify Google Maps actor is NOT used here —
+ * instead we skip straight to scraping + LLM since the lead is already known.
+ * We store a stub externalRunId='DIRECT' to signal the advance route to skip
+ * the Apify status check and proceed directly to scraping + LLM.
+ */
+
 import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
-import { triggerResearchWorkflow } from '@/lib/workflow-client';
 import { jobRuns } from '@/db/schema/research';
 import { cookies } from 'next/headers';
 import { decrypt } from '@/lib/auth';
+import { triggerResearchWorkflow } from '@/lib/workflow-client';
 
 async function getUserId() {
   if (process.env.NODE_ENV === 'test') {
@@ -22,8 +35,8 @@ async function getUserId() {
 }
 
 export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: leadId } = await params;
   const userId = await getUserId();
@@ -37,32 +50,26 @@ export async function POST(
   const now = new Date();
 
   try {
-    // 1. Create job_runs row in QUEUED status
+    // Create job in QUEUED status with a special externalRunId='DIRECT'
     await db.insert(jobRuns).values({
       id: jobId,
       jobType: 'RESEARCH_GENERATION',
       status: 'QUEUED',
       targetLeadId: leadId,
       triggeredByUserId: userId,
+      externalRunId: 'DIRECT', // sentinel: no Apify run needed, go straight to LLM
       startedAt: null,
       finishedAt: null,
       createdAt: now,
     });
 
-    // 2. Fetch active Cloudflare Workflow binding if present
-    const workflowBinding = (process.env as unknown as Record<string, unknown>)?.RESEARCH_SNAPSHOT_WORKFLOW;
+    const workflowBinding = (process.env as unknown as Record<string, unknown>)?.RESEARCH_SNAPSHOT_WORKFLOW as any;
+    await triggerResearchWorkflow(db, workflowBinding, leadId, jobId, userId);
 
-    // 3. Trigger workflow/simulation asynchronously
-    await triggerResearchWorkflow(db, workflowBinding as any, leadId, jobId, userId);
-
-    // 4. Return immediately with jobId
     return NextResponse.json({ jobId }, { status: 202 });
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : 'Internal Server Error';
     console.error('Failed to trigger research:', error);
-    return NextResponse.json(
-      { error: errMsg },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errMsg }, { status: 500 });
   }
 }

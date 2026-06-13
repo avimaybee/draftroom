@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { triggerTriageWorkflow } from '@/lib/workflow-client';
 import { getDb } from '@/db';
 import { leads, activities } from '@/db/schema/core';
 import { cookies } from 'next/headers';
@@ -80,22 +81,10 @@ export async function POST(request: Request) {
     }
 
     // 2. Trigger Triage Workflow for all imported leads
-    interface TriageWorkflowBinding {
-      create(options: { params: { leadId: string } }): Promise<unknown>;
-    }
-    const workflowBinding = (process.env as unknown as Record<string, unknown>)?.TRIAGE_WORKFLOW as TriageWorkflowBinding | undefined;
+    const workflowBinding = (process.env as unknown as Record<string, unknown>)?.TRIAGE_WORKFLOW as any;
     
     for (const leadId of importedLeadIds) {
-      if (workflowBinding && typeof workflowBinding.create === 'function') {
-        try {
-          await workflowBinding.create({ params: { leadId } });
-        } catch (err: unknown) {
-          console.error(`Failed to trigger CF Workflow for triage on lead ${leadId}`, err);
-          // Fallback handled locally if needed, but for MVP we rely on CF Workflow
-        }
-      } else {
-        console.warn(`[Triage] No TRIAGE_WORKFLOW binding found. Skipping triage for lead ${leadId}.`);
-      }
+      await triggerTriageWorkflow(db, workflowBinding, leadId);
     }
 
     return NextResponse.json({ 

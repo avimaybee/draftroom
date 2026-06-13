@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
+	"main": "src/entry.ts",
 	"name": "leadroom",
 	"compatibility_date": "2024-09-23",
 	"compatibility_flags": [
@@ -18,12 +18,32 @@
 			"database_id": "fc5f9b16-1bc5-43e5-8a5d-5e54d3ec7b70"
 		}
 	],
+	"browser": {
+		"binding": "BROWSER"
+	},
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
 			// see https://opennext.js.org/cloudflare/caching
 			"binding": "WORKER_SELF_REFERENCE",
 			"service": "leadroom"
+		}
+	],
+	"workflows": [
+		{
+			"name": "research-snapshot-workflow",
+			"binding": "RESEARCH_SNAPSHOT_WORKFLOW",
+			"class_name": "ResearchSnapshotWorkflow"
+		},
+		{
+			"name": "triage-workflow",
+			"binding": "TRIAGE_WORKFLOW",
+			"class_name": "TriageWorkflow"
+		},
+		{
+			"name": "discovery-search-workflow",
+			"binding": "DISCOVERY_SEARCH_WORKFLOW",
+			"class_name": "DiscoverySearchWorkflow"
 		}
 	]
 }

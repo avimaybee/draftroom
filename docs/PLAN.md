@@ -337,8 +337,8 @@ Make lead intake repeatable.
 
 ### Excluded scope
 
-- broad automated scraping engine.
-- deep enrichment.
+- broad automated scraping engine (beyond Apify for targeted discovery).
+- deep enrichment (reserved for Stage 3).
 - autonomous discovery loops.
 
 ### Key outputs
@@ -370,7 +370,7 @@ Reduce repetitive research time.
 ### Included scope
 
 - manual trigger for enrichment.
-- public data capture via lightweight scraping (e.g., Jina Reader).
+- public data capture via lightweight edge scraping (e.g., Cloudflare Browser Run/Playwright).
 - durable asynchronous execution via Cloudflare Workflows.
 - research snapshot generation using strict JSON schema.
 - source links and timestamps.

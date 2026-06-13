@@ -37,14 +37,14 @@ export default function ClientResearchView({
     if (!pollingJobId) return;
 
     let intervalId: any;
-    const checkJob = async () => {
+    const checkJobStatus = async () => {
       try {
+        // GET /api/jobs/[id] polls the job status updated by the background workflow/simulation.
         const res = await fetch(`/api/jobs/${pollingJobId}`);
         if (!res.ok) {
-          throw new Error('Failed to fetch job status');
+          throw new Error('Failed to check job status');
         }
         
-        // Proper typing instead of `as any`
         const rawData = await res.json();
         const data = rawData as { status: string; errorSummary?: string };
         
@@ -71,9 +71,10 @@ export default function ClientResearchView({
     };
 
     // Run first check immediately
-    checkJob();
+    checkJobStatus();
 
-    intervalId = setInterval(checkJob, 2500);
+    // Poll every 5 seconds
+    intervalId = setInterval(checkJobStatus, 5000);
 
     return () => clearInterval(intervalId);
   }, [pollingJobId, router]);

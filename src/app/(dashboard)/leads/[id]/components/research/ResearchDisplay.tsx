@@ -46,12 +46,21 @@ export function ResearchDisplay({
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-fade-in">
       {jobError && (
-        <div className="bg-rose-50 border-b border-rose-100 text-rose-600 p-3 text-xs font-semibold text-center flex items-center justify-center gap-2">
-          <svg className="w-4 h-4 text-rose-500 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          {jobError}
-        </div>
+        jobError.includes('429') ? (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-800 p-3 text-xs font-semibold text-center flex items-center justify-center gap-2">
+            <svg className="w-4.5 h-4.5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Cloudflare Browser Run limit exceeded. You can manually edit the research below.
+          </div>
+        ) : (
+          <div className="bg-rose-50 border-b border-rose-100 text-rose-600 p-3 text-xs font-semibold text-center flex items-center justify-center gap-2">
+            <svg className="w-4 h-4 text-rose-500 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            {jobError}
+          </div>
+        )
       )}
       {/* Header */}
       <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/40">

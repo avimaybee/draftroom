@@ -9,6 +9,10 @@ export const jobRuns = sqliteTable('job_runs', {
   targetLeadId: text('target_lead_id').references(() => leads.id),
   triggeredByUserId: text('triggered_by_user_id').references(() => users.id),
   errorSummary: text('error_summary'),
+  /** External provider job ID (e.g. Apify actor run ID) for async status polling */
+  externalRunId: text('external_run_id'),
+  /** JSON-serialised partial data used between polling steps (e.g. Apify datasetId) */
+  jobMeta: text('job_meta'),
   startedAt: integer('started_at', { mode: 'timestamp' }),
   finishedAt: integer('finished_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),

@@ -1,9 +1,19 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-const secretKey = new TextEncoder().encode(
-  ((typeof process !== 'undefined' ? process.env : undefined) as any)?.AUTH_SECRET || 
-  'fallback-secret-key-at-least-32-chars-long'
-);
+function getSecretKey(): Uint8Array {
+  let secret: string | undefined;
+  // Try Cloudflare context first (production worker)
+  try {
+    const { getCloudflareContext } = require('@opennextjs/cloudflare');
+    const cf = getCloudflareContext();
+    secret = (cf?.env as any)?.AUTH_SECRET;
+  } catch (e) {}
+  // Fall back to process.env (local dev / tests)
+  if (!secret) {
+    secret = (typeof process !== 'undefined' ? process.env : undefined)?.AUTH_SECRET;
+  }
+  return new TextEncoder().encode(secret || 'fallback-secret-key-at-least-32-chars-long');
+}
 
 export interface SessionPayload {
   userId: string;
@@ -15,13 +25,13 @@ export async function encrypt(payload: SessionPayload) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('24h')
-    .sign(secretKey);
+    .sign(getSecretKey());
 }
 
 export async function decrypt(session: string | undefined): Promise<SessionPayload | null> {
   if (!session) return null;
   try {
-    const { payload } = await jwtVerify(session, secretKey, {
+    const { payload } = await jwtVerify(session, getSecretKey(), {
       algorithms: ['HS256'],
     });
     return payload as unknown as SessionPayload;

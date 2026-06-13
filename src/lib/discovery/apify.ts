@@ -8,19 +8,49 @@ export interface DiscoveryLead {
   industry: string | null;
 }
 
-export async function searchGoogleMaps(niche: string, location: string, limit: number = 30): Promise<DiscoveryLead[]> {
-  const token = process.env.APIFY_API_TOKEN;
+export interface ApifyRunRef {
+  runId: string;
+  datasetId: string;
+}
+
+/**
+ * Resolves the Apify API token from Cloudflare context (production) or process.env (local dev).
+ */
+function getApifyToken(): string {
+  let token: string | undefined;
+  try {
+    const { getCloudflareContext } = require('@opennextjs/cloudflare');
+    const cf = getCloudflareContext();
+    token = (cf?.env as any)?.APIFY_API_TOKEN;
+  } catch (e) {}
+  if (!token) {
+    token = (process as any).env?.APIFY_API_TOKEN;
+  }
   if (!token) {
     throw new Error('APIFY_API_TOKEN is not configured in environment variables');
   }
+  return token;
+}
+
+/**
+ * Starts an Apify Google Maps actor run and returns immediately with the
+ * runId and datasetId so the caller can poll status in subsequent requests.
+ * This avoids holding a long-running Cloudflare Worker connection.
+ */
+export async function startGoogleMapsSearch(
+  niche: string,
+  location: string,
+  limit: number = 30,
+): Promise<ApifyRunRef> {
+  const token = getApifyToken();
 
   const input = {
     searchStringsArray: [niche],
     locationQuery: location,
     maxCrawledPlacesPerSearch: limit,
-    language: "en",
-    searchMatching: "all",
-    website: "allPlaces",
+    language: 'en',
+    searchMatching: 'all',
+    website: 'allPlaces',
     skipClosedPlaces: true,
     scrapePlaceDetailPage: false,
     scrapeTableReservationProvider: false,
@@ -30,11 +60,11 @@ export async function searchGoogleMaps(niche: string, location: string, limit: n
     maxQuestions: 0,
     scrapeContacts: false,
     scrapeSocialMediaProfiles: {
-        facebooks: false,
-        instagrams: false,
-        youtubes: false,
-        tiktoks: false,
-        twitters: false
+      facebooks: false,
+      instagrams: false,
+      youtubes: false,
+      tiktoks: false,
+      twitters: false,
     },
     maximumLeadsEnrichmentRecords: 0,
     verifyLeadsEnrichmentEmails: false,
@@ -43,14 +73,16 @@ export async function searchGoogleMaps(niche: string, location: string, limit: n
     scrapeImageAuthors: false,
   };
 
-  console.log(`[Apify] Searching for ${niche} in ${location} via REST API...`);
-  
-  // 1. Start the actor run
-  const runRes = await fetch(`https://api.apify.com/v2/acts/nwua9Gu5YrADL7ZDj/runs?token=${token}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input)
-  });
+  console.log(`[Apify] Starting actor for "${niche}" in "${location}" (limit ${limit})...`);
+
+  const runRes = await fetch(
+    `https://api.apify.com/v2/acts/nwua9Gu5YrADL7ZDj/runs?token=${token}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+  );
 
   if (!runRes.ok) {
     const errorText = await runRes.text();
@@ -58,51 +90,52 @@ export async function searchGoogleMaps(niche: string, location: string, limit: n
   }
 
   const runData = (await runRes.json()) as {
-    data?: {
-      id: string;
-      defaultDatasetId: string;
-      status: string;
-    };
+    data?: { id: string; defaultDatasetId: string; status: string };
   };
 
   if (!runData.data) {
     throw new Error('Apify API returned an invalid run response');
   }
 
-  const { id: runId, defaultDatasetId: datasetId } = runData.data;
+  return {
+    runId: runData.data.id,
+    datasetId: runData.data.defaultDatasetId,
+  };
+}
 
-  // 2. Poll status until completed
-  let status = runData.data.status;
-  const startTime = Date.now();
-  const timeoutMs = 240000; // 4 minutes timeout
+export type ApifyRunStatus = 'RUNNING' | 'READY' | 'SUCCEEDED' | 'FAILED' | 'ABORTED' | 'TIMED-OUT';
 
-  while (status === 'RUNNING' || status === 'READY') {
-    if (Date.now() - startTime > timeoutMs) {
-      throw new Error('Apify actor run timed out');
-    }
-    // Wait for 2 seconds
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+/**
+ * Checks the current status of an Apify run without blocking.
+ */
+export async function checkApifyRunStatus(runId: string): Promise<ApifyRunStatus> {
+  const token = getApifyToken();
 
-    const checkRes = await fetch(`https://api.apify.com/v2/acts/nwua9Gu5YrADL7ZDj/runs/${runId}?token=${token}`);
-    if (!checkRes.ok) {
-      throw new Error(`Failed to check status of Apify actor: status ${checkRes.status}`);
-    }
-
-    const checkData = (await checkRes.json()) as {
-      data?: {
-        status: string;
-      };
-    };
-    status = checkData.data?.status || 'FAILED';
+  const res = await fetch(
+    `https://api.apify.com/v2/acts/nwua9Gu5YrADL7ZDj/runs/${runId}?token=${token}`,
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to check Apify run status: HTTP ${res.status}`);
   }
 
-  if (status !== 'SUCCEEDED') {
-    throw new Error(`Apify actor run failed with status: ${status}`);
-  }
+  const data = (await res.json()) as { data?: { status: string } };
+  return (data.data?.status || 'FAILED') as ApifyRunStatus;
+}
 
-  // 3. Fetch dataset items
-  console.log(`[Apify] Run finished. Fetching dataset items from ${datasetId}...`);
-  const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}`);
+/**
+ * Fetches completed dataset items from Apify and maps them to DiscoveryLead records.
+ */
+export async function fetchApifyResults(
+  datasetId: string,
+  niche: string,
+  location: string,
+): Promise<DiscoveryLead[]> {
+  const token = getApifyToken();
+
+  console.log(`[Apify] Fetching dataset items from ${datasetId}...`);
+  const itemsRes = await fetch(
+    `https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}`,
+  );
   if (!itemsRes.ok) {
     throw new Error(`Failed to fetch Apify dataset items: status ${itemsRes.status}`);
   }
@@ -130,4 +163,34 @@ export async function searchGoogleMaps(niche: string, location: string, limit: n
     sourceUrl: item.url || null,
     industry: item.categoryName || niche,
   }));
+}
+
+/**
+ * @deprecated Use startGoogleMapsSearch + checkApifyRunStatus + fetchApifyResults
+ * for production. This blocking version is only safe for local Node.js dev/tests.
+ */
+export async function searchGoogleMaps(
+  niche: string,
+  location: string,
+  limit: number = 30,
+): Promise<DiscoveryLead[]> {
+  const { runId, datasetId } = await startGoogleMapsSearch(niche, location, limit);
+
+  const startTime = Date.now();
+  const timeoutMs = 240_000;
+
+  let status = await checkApifyRunStatus(runId);
+  while (status === 'RUNNING' || status === 'READY') {
+    if (Date.now() - startTime > timeoutMs) {
+      throw new Error('Apify actor run timed out');
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+    status = await checkApifyRunStatus(runId);
+  }
+
+  if (status !== 'SUCCEEDED') {
+    throw new Error(`Apify actor run failed with status: ${status}`);
+  }
+
+  return fetchApifyResults(datasetId, niche, location);
 }

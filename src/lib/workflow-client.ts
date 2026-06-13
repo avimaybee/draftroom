@@ -3,6 +3,8 @@ import { fetchSiteContent } from '@/lib/scraper';
 import { generateResearch, runTriageAI } from '@/lib/ai';
 import { jobRuns, researchSnapshots } from '@/db/schema/research';
 import { leads, activities } from '@/db/schema/core';
+import { candidateLeads } from '@/db/schema/discovery';
+import { checkApifyRunStatus, fetchApifyResults } from '@/lib/discovery/apify';
 import { eq } from 'drizzle-orm';
 
 interface CloudflareWorkflow {
@@ -37,8 +39,7 @@ export async function triggerResearchWorkflow(
   // Simulation mode
   console.log(`[WorkflowClient] Local simulation mode for lead: ${leadId}, job: ${jobId}`);
 
-  // Run asynchronously in the background
-  (async () => {
+  const runSimulation = async () => {
     try {
       // Step 1: Fetch Lead Info
       const [lead] = await db.select().from(leads).where(eq(leads.id, leadId)).limit(1);
@@ -55,7 +56,6 @@ export async function triggerResearchWorkflow(
       let scraped = null;
       if (lead.website) {
         try {
-          // Add a minor artificial delay for local realism if desired, but not strictly required
           scraped = await fetchSiteContent(lead.website);
         } catch (error: unknown) {
           const errMsg = error instanceof Error ? error.message : String(error);
@@ -143,7 +143,19 @@ export async function triggerResearchWorkflow(
         console.error('[WorkflowClient Simulation] Failed to write failure status to DB:', dbErr);
       }
     }
-  })();
+  };
+
+  let ctx: any = undefined;
+  try {
+    const { getCloudflareContext } = require('@opennextjs/cloudflare');
+    ctx = getCloudflareContext().ctx;
+  } catch (e) {}
+
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(runSimulation());
+  } else {
+    runSimulation();
+  }
 }
 
 /**
@@ -172,8 +184,7 @@ export async function triggerTriageWorkflow(
   // Simulation mode
   console.log(`[WorkflowClient] Local simulation mode for triage on lead: ${leadId}`);
 
-  // Run asynchronously in the background
-  (async () => {
+  const runTriageSimulation = async () => {
     try {
       // 1. Fetch Lead
       const [lead] = await db.select().from(leads).where(eq(leads.id, leadId)).limit(1);
@@ -237,6 +248,123 @@ export async function triggerTriageWorkflow(
     } catch (error: unknown) {
       console.error(`[WorkflowClient Simulation] Triage workflow failed for lead ${leadId}:`, error);
     }
-  })();
+  };
+
+  let ctx: any = undefined;
+  try {
+    const { getCloudflareContext } = require('@opennextjs/cloudflare');
+    ctx = getCloudflareContext().ctx;
+  } catch (e) {}
+
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(runTriageSimulation());
+  } else {
+    runTriageSimulation();
+  }
 }
+
+/**
+ * Triggers the Discovery Search Workflow.
+ * If running under Cloudflare with the Workflow binding available, it triggers the real durable workflow.
+ * If running locally in Node.js (Next.js dev server, tests) where the binding is absent, it simulates
+ * the identical discovery polling and saving steps asynchronously in the background.
+ */
+export async function triggerDiscoverySearchWorkflow(
+  db: Db,
+  workflowBinding: CloudflareWorkflow | undefined | null,
+  jobId: string,
+  runId: string,
+  datasetId: string,
+  niche: string,
+  location: string,
+  scopeId: string | null,
+  userId: string
+) {
+  if (workflowBinding && typeof workflowBinding.create === 'function') {
+    console.log(`[WorkflowClient] Triggering Cloudflare Discovery Search Workflow for job: ${jobId}`);
+    try {
+      await workflowBinding.create({
+        params: { jobId, runId, datasetId, niche, location, scopeId: scopeId || null, userId }
+      });
+      return;
+    } catch (err: unknown) {
+      console.error('[WorkflowClient] Failed to trigger Cloudflare Discovery Search Workflow binding. Falling back to simulation.', err);
+    }
+  }
+
+  // Simulation mode
+  console.log(`[WorkflowClient] Local simulation mode for discovery search job: ${jobId}`);
+
+  const runSimulation = async () => {
+    try {
+      // 1. Wait/poll Apify
+      let status = await checkApifyRunStatus(runId);
+      const startTime = Date.now();
+      const timeoutMs = 240_000; // 4 minutes
+
+      while (status === 'RUNNING' || status === 'READY') {
+        if (Date.now() - startTime > timeoutMs) {
+          throw new Error('Apify actor run timed out during local simulation');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        status = await checkApifyRunStatus(runId);
+      }
+
+      if (status !== 'SUCCEEDED') {
+        throw new Error(`Apify actor run ended with status: ${status}`);
+      }
+
+      // 2. Fetch Apify results
+      const results = await fetchApifyResults(datasetId, niche, location);
+
+      // 3. Save candidates & complete job
+      const now = new Date();
+      if (results.length > 0) {
+        await db.insert(candidateLeads).values(
+          results.map((r) => ({
+            id: crypto.randomUUID(),
+            discoveryScopeId: scopeId || null,
+            rawName: r.name,
+            rawWebsiteUrl: r.website,
+            rawContactInfo: r.phone || null,
+            rawLocation: [r.city, r.region].filter(Boolean).join(', ') || null,
+            notes: r.industry ? `Industry: ${r.industry}` : null,
+            status: 'NEW' as const,
+            createdAt: now,
+            updatedAt: now,
+          })),
+        );
+      }
+
+      await db.update(jobRuns)
+        .set({ status: 'COMPLETED', finishedAt: now })
+        .where(eq(jobRuns.id, jobId));
+
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : 'Unknown error during local simulation';
+      console.error(`[WorkflowClient Simulation] Discovery search failed for job ${jobId}:`, error);
+
+      try {
+        await db.update(jobRuns)
+          .set({ status: 'FAILED', errorSummary: errMsg, finishedAt: new Date() })
+          .where(eq(jobRuns.id, jobId));
+      } catch (dbErr) {
+        console.error('[WorkflowClient Simulation] Failed to write failure status to DB:', dbErr);
+      }
+    }
+  };
+
+  let ctx: any = undefined;
+  try {
+    const { getCloudflareContext } = require('@opennextjs/cloudflare');
+    ctx = getCloudflareContext().ctx;
+  } catch (e) {}
+
+  if (ctx && typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(runSimulation());
+  } else {
+    runSimulation();
+  }
+}
+
 
