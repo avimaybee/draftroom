@@ -83,8 +83,14 @@ export async function saveIntegrationConfigAction(formData: FormData) {
   const service = new IntegrationsService(db);
 
   try {
+    if (isActive) {
+      const { providerConfigs } = await import('@/db/schema/core');
+      await db.update(providerConfigs).set({ isActive: false });
+    }
     await service.saveProviderConfig(provider, apiKey, modelName, isActive);
-    revalidatePath('/settings/integrations');
+    try {
+      revalidatePath('/settings/integrations');
+    } catch (e) {}
     return { success: true };
   } catch (e: unknown) {
     console.error(e);
@@ -101,10 +107,40 @@ export async function deleteIntegrationConfigAction(provider: string) {
 
   try {
     await service.deleteProviderConfig(provider);
-    revalidatePath('/settings/integrations');
+    try {
+      revalidatePath('/settings/integrations');
+    } catch (e) {}
     return { success: true };
   } catch (e: unknown) {
     const errMsg = e instanceof Error ? e.message : 'Failed to delete configuration';
     return { error: errMsg };
+  }
+}
+
+export async function setActiveProviderAndModelAction(provider: string, modelName: string) {
+  if (!provider || !modelName) {
+    return { error: 'Provider and model name are required' };
+  }
+
+  const db = getDb();
+  const service = new IntegrationsService(db);
+
+  try {
+    const config = await service.getProviderConfig(provider);
+    if (!config || !config.apiKey) {
+      return { error: `Provider "${provider}" has no saved configuration. Please configure it first.` };
+    }
+
+    const { providerConfigs } = await import('@/db/schema/core');
+    await db.update(providerConfigs).set({ isActive: false });
+    await service.saveProviderConfig(provider, config.apiKey, modelName, true);
+
+    try {
+      revalidatePath('/settings/integrations');
+    } catch (e) {}
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to set active provider and model:', error);
+    return { error: error.message || 'Failed to set active provider and model' };
   }
 }

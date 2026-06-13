@@ -1,0 +1,196 @@
+import { test } from 'node:test';
+import assert from 'node:assert';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { eq } from 'drizzle-orm';
+import { providerConfigs } from '../schema/core';
+
+// Ensure test environment
+process.env.NODE_ENV = 'test';
+
+import { saveIntegrationConfigAction, setActiveProviderAndModelAction } from '../../app/(dashboard)/settings/integrations/actions';
+
+class MockD1Database {
+  constructor(private sqlite: any) {}
+
+  prepare(query: string) {
+    const stmt = this.sqlite.prepare(query);
+    
+    const createPreparedStatement = (boundParams: any[]): any => {
+      return {
+        bind: (...params: any[]) => {
+          return createPreparedStatement(boundParams.concat(params.flat()));
+        },
+        all: async () => {
+          try {
+            const results = stmt.all(...boundParams);
+            return { results, success: true };
+          } catch (e: any) {
+            console.error('SQLite stmt.all error:', e);
+            throw new Error(`Failed query: ${query}\nparams: ${boundParams.join(', ')}\n${e.message}`);
+          }
+        },
+        run: async () => {
+          try {
+            const info = stmt.run(...boundParams);
+            return { 
+              success: true, 
+              meta: {
+                changes: info.changes,
+                duration: 0,
+                last_row_id: info.lastInsertRowid,
+              } 
+            };
+          } catch (e: any) {
+            console.error('SQLite stmt.run error:', e);
+            throw new Error(`Failed query: ${query}\nparams: ${boundParams.join(', ')}\n${e.message}`);
+          }
+        },
+        first: async () => {
+          try {
+            return stmt.get(...boundParams);
+          } catch (e: any) {
+            console.error('SQLite stmt.get error:', e);
+            throw new Error(`Failed query: ${query}\nparams: ${boundParams.join(', ')}\n${e.message}`);
+          }
+        },
+        raw: async () => {
+          try {
+            stmt.raw(true);
+            const results = stmt.all(...boundParams);
+            stmt.raw(false);
+            return results;
+          } catch (e: any) {
+            console.error('SQLite stmt.raw error:', e);
+            throw new Error(`Failed query (raw): ${query}\nparams: ${boundParams.join(', ')}\n${e.message}`);
+          }
+        }
+      };
+    };
+
+    return createPreparedStatement([]);
+  }
+
+  async exec(query: string) {
+    this.sqlite.exec(query);
+    return { count: 1, duration: 0 };
+  }
+}
+
+function setupTestDb() {
+  const sqlite = new Database(':memory:');
+  
+  sqlite.exec(`
+    CREATE TABLE provider_configs (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL UNIQUE,
+      api_key TEXT NOT NULL,
+      model_name TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+  `);
+
+  const mockD1 = new MockD1Database(sqlite);
+  return { mockD1, sqlite };
+}
+
+test('AI Provider Config & Active Picker Integration', async (t) => {
+  const { mockD1, sqlite } = setupTestDb();
+  
+  // Set the DB mock
+  process.env = {
+    ...process.env,
+    DB: mockD1 as any,
+  };
+
+  const db = drizzle(sqlite);
+
+  // Mock global fetch for API key validations
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url: any) => {
+    const urlStr = url.toString();
+    if (urlStr.includes('generativelanguage.googleapis.com')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          models: [
+            { name: 'models/gemini-2.5-flash' },
+            { name: 'models/gemini-2.5-pro' }
+          ]
+        })
+      } as any;
+    }
+    if (urlStr.includes('integrate.api.nvidia.com')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          data: [
+            { id: 'meta/llama-3.1-70b-instruct' }
+          ]
+        })
+      } as any;
+    }
+    return { ok: true, status: 200, json: async () => ({}) } as any;
+  };
+
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  await t.test('saveIntegrationConfigAction sets isActive mutually exclusively', async () => {
+    // 1. Save Gemini as active
+    const geminiFormData = new FormData();
+    geminiFormData.append('provider', 'gemini');
+    geminiFormData.append('apiKey', 'mock-gemini-key');
+    geminiFormData.append('modelName', 'gemini-2.5-flash');
+    geminiFormData.append('isActive', 'on');
+
+    const res1 = await saveIntegrationConfigAction(geminiFormData);
+    assert.strictEqual(res1.success, true);
+
+    const configs1 = await db.select().from(providerConfigs);
+    assert.strictEqual(configs1.length, 1);
+    assert.strictEqual(configs1[0].provider, 'gemini');
+    assert.strictEqual(configs1[0].isActive, true);
+
+    // 2. Save Nvidia as active - should automatically deactivate Gemini
+    const nvidiaFormData = new FormData();
+    nvidiaFormData.append('provider', 'nvidia');
+    nvidiaFormData.append('apiKey', 'mock-nvidia-key');
+    nvidiaFormData.append('modelName', 'meta/llama-3.1-70b-instruct');
+    nvidiaFormData.append('isActive', 'on');
+
+    const res2 = await saveIntegrationConfigAction(nvidiaFormData);
+    assert.strictEqual(res2.success, true);
+
+    const geminiRow = await db.select().from(providerConfigs).where(eq(providerConfigs.provider, 'gemini')).limit(1);
+    const nvidiaRow = await db.select().from(providerConfigs).where(eq(providerConfigs.provider, 'nvidia')).limit(1);
+
+    assert.strictEqual(geminiRow[0].isActive, false); // Automatically deactivated
+    assert.strictEqual(nvidiaRow[0].isActive, true);  // Newly active
+  });
+
+  await t.test('setActiveProviderAndModelAction updates the chosen active provider and deactivates others', async () => {
+    // 1. Activate Gemini via the active picker action
+    const res = await setActiveProviderAndModelAction('gemini', 'gemini-2.5-pro');
+    assert.strictEqual(res.success, true);
+
+    const geminiRow = await db.select().from(providerConfigs).where(eq(providerConfigs.provider, 'gemini')).limit(1);
+    const nvidiaRow = await db.select().from(providerConfigs).where(eq(providerConfigs.provider, 'nvidia')).limit(1);
+
+    assert.strictEqual(geminiRow[0].isActive, true);
+    assert.strictEqual(geminiRow[0].modelName, 'gemini-2.5-pro'); // Model name updated
+    assert.strictEqual(nvidiaRow[0].isActive, false); // Deactivated
+  });
+
+  await t.test('setActiveProviderAndModelAction fails when target provider is not configured (missing key)', async () => {
+    // groq is not configured in the db yet
+    const res = await setActiveProviderAndModelAction('groq', 'llama3-70b-8192');
+    assert.ok(res.error);
+    assert.ok(res.error.includes('no saved configuration'));
+  });
+});
